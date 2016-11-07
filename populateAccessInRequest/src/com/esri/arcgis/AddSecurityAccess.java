@@ -1,4 +1,4 @@
-package com.esri.gw.security;
+package com.esri.arcgis;
 
 import java.io.IOException;
 
@@ -8,11 +8,9 @@ import javax.servlet.FilterConfig;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
-//import javax.servlet.annotation.WebFilter;
-
-import java.util.Enumeration;
-import java.util.HashMap;
+//import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -27,7 +25,7 @@ import org.json.JSONArray;
 public class AddSecurityAccess implements Filter {
 
 	private static final Logger log = Logger.getLogger("AddSecurityAccess");
-	private static final String specailFieldsRegex = "(?i)^searchtext$";
+	//private static final String specailFieldsRegex = "(?i)^searchtext$";
 	
     /**
      * Default constructor. 
@@ -50,40 +48,26 @@ public class AddSecurityAccess implements Filter {
 		// TODO Auto-generated method stub
 		// place your code here
 
-		Map<String, String[]> additionalParams = new HashMap<String, String[]>();
-		additionalParams.put("finegraincontrols", new String[] {"HCS-P", "SI", "TK"});
-		additionalParams.put("clearance", new String[] {"TS", "S", "C"});
-		additionalParams.put("citizenship", new String[] {"USA"});
+		Map<String, String[]> additionalParams = new TreeMap<String, String[]>();
+		additionalParams.put("accesses", new String[] {"HCS-P"});
+		additionalParams.put("clearances", new String[] {"TS"});
+		additionalParams.put("citizen", new String[] {"US"});
+		additionalParams.put("rotation", new String[] {"45"});
 		AddSecurityAccessWrapper enhancedHttpRequest = new AddSecurityAccessWrapper((HttpServletRequest)request, additionalParams);
 		
 		Map<String, String[]> params = enhancedHttpRequest.getParameterMap();
 		for(String name : params.keySet()) {
 			String[] vals = params.get(name);
-			if (name.matches(specailFieldsRegex) && vals[0] != null) {
-				log.log(Level.INFO, "       #1 parameter >>>>>> " + name + " :: " + vals[0]);
-				continue;
-			}
+//			if (name.matches(specailFieldsRegex) && vals[0] != null) {
+//				log.log(Level.INFO, "       #1 parameter >>>>>> " + name + " :: " + vals[0]);
+//				continue;
+//			}
 			Object value = toJsonValue(vals[0]);
 		    if(value == null) {
 		        continue;
 		    }
-		    log.log(Level.INFO, "       #2 parameter >>>>>> " + name + " :: " + value);
-			//log.log(Level.INFO, "       Enhanced parameter >>>>>> " + name + " :: " + vals[0]);
+		    log.log(Level.INFO, "       #2 parameter >>>>>> " + name + " <---> " + value);
 		}
-//        Enumeration<String> pnames = enhancedHttpRequest.getParameterNames();
-//        while (pnames.hasMoreElements()) {
-//            String pname = pnames.nextElement();
-//            String pvalues[] = enhancedHttpRequest.getParameterValues(pname);
-//            StringBuilder result = new StringBuilder(pname);
-//            result.append('=');
-//            for (int i = 0; i < pvalues.length; i++) {
-//                if (i > 0) {
-//                    result.append(", ");
-//                }
-//                result.append(pvalues[i]);
-//            }
-//            log.log(Level.INFO, "       Enhanced parameter >>>>>> " + result.toString());
-//        }
 
 		// pass the request along the filter chain
 		chain.doFilter(enhancedHttpRequest, response);

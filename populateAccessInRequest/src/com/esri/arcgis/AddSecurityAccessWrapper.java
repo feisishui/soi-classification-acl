@@ -1,10 +1,11 @@
-package com.esri.gw.security;
+package com.esri.arcgis;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.TreeMap;
-//import java.util.logging.Logger;
-//import java.util.logging.Level;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletRequestWrapper;
@@ -13,7 +14,7 @@ public class AddSecurityAccessWrapper extends HttpServletRequestWrapper
 {
     private final Map<String, String[]> modifiableParameters;
     private Map<String, String[]> allParameters = null;
-//    private static final Logger log = Logger.getLogger("AddSecurityAccessWrapper");
+    private static final Logger log = Logger.getLogger("AddSecurityAccessWrapper");
 
     /**
      * Create a new request wrapper that will merge additional parameters into
@@ -29,27 +30,12 @@ public class AddSecurityAccessWrapper extends HttpServletRequestWrapper
         super(request);
         modifiableParameters = new TreeMap<String, String[]>();
         modifiableParameters.putAll(additionalParams);
-//        log.log(Level.INFO, "**** FILTER CALLED ****");
-        
-//        Enumeration<String> pnames = request.getParameterNames();
-//        while (pnames.hasMoreElements()) {
-//            String pname = pnames.nextElement();
-//            String pvalues[] = request.getParameterValues(pname);
-//            StringBuilder result = new StringBuilder(pname);
-//            result.append('=');
-//            for (int i = 0; i < pvalues.length; i++) {
-//                if (i > 0) {
-//                    result.append(", ");
-//                }
-//                result.append(pvalues[i]);
-//            }
-//            log.log(Level.INFO, "         parameter>> " + result.toString());
-//        }
     }
 
     @Override
     public String getParameter(final String name)
     {
+    	//log.log(Level.INFO, "getParameter() called *********************");
         String[] strings = getParameterMap().get(name);
         if (strings != null)
         {
@@ -63,11 +49,11 @@ public class AddSecurityAccessWrapper extends HttpServletRequestWrapper
     {
         if (allParameters == null)
         {
+        	log.log(Level.INFO, "getParameterMap() called *********************");
             allParameters = new TreeMap<String, String[]>();
             allParameters.putAll(super.getParameterMap());
             allParameters.putAll(modifiableParameters);
         }
-        //og.log(Level.INFO, "**** FILTER CALLED ****");
         //Return an unmodifiable collection because we need to uphold the interface contract.
         return Collections.unmodifiableMap(allParameters);
     }
@@ -83,4 +69,5 @@ public class AddSecurityAccessWrapper extends HttpServletRequestWrapper
     {
         return getParameterMap().get(name);
     }
+
 }
