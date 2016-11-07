@@ -37,6 +37,10 @@ import com.esri.arcgis.system.IWebRequestHandler;
 import com.esri.arcgis.system.IWebRequestHandlerProxy;
 import com.esri.arcgis.system.ServerUtilities;
 
+import com.esri.arcgis.carto.MapServer;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
 /*
  * For an SOE to act as in interceptor, it needs to implement all request handler interfaces
  * IRESTRequestHandler, IWebRequestHandler, IRequestHandler2, IRequestHandler now the SOE/SOI can
@@ -61,6 +65,9 @@ public class ServerObjectInt1 implements IServerObjectExtension,
 	private ILog serverLog;
 	private IServerObject so;
 	private SOIHelper soiHelper;
+	
+	private JSONObject ConfigMap = null;
+	private String mapsvcOutputDir = null;
 
 	/**
 	 * Default constructor.
@@ -106,6 +113,9 @@ public class ServerObjectInt1 implements IServerObjectExtension,
 		// Load the SOI helper.    
 		this.soiHelper = new SOIHelper(arcgisHome + "XmlSchema"
 				+ File.separator + "MapServer.wsdl");
+		
+		// Read in the SOLR config file for this particular service.
+		getConfigFromFile(this.so);
 	}
 
 	/**
@@ -274,19 +284,6 @@ public class ServerObjectInt1 implements IServerObjectExtension,
 		return new String("Anonymous User");
 	}
 
-	/**
-	 * Get bbox from operationInput
-	 * 
-	 * @param operationInput
-	 * @return
-	 */
-	private String processOperationInput(String operationInput) {
-		try {
-			return "bbox = " + new JSONObject(operationInput).getString("bbox");
-		} catch (Exception ignore) {
-		}
-		return new String("No input parameters");
-	}
 
 	/**
 	 * This method is called to handle schema requests for custom SOE's.
@@ -386,4 +383,68 @@ public class ServerObjectInt1 implements IServerObjectExtension,
 		}
 		return arcgisHome;
 	}
+	
+	 /**
+	   * Reads a permission file and return the defined permissions.
+	   * 
+	   * @param serverobject
+	   * @throws IOException
+	   */
+	  private void getConfigFromFile(IServerObject serverobject) throws IOException {
+	    //String serverDir = null;
+	    MapServer mapserver= (MapServer)serverobject;
+	    String physicalOutputDir= mapserver.getPhysicalOutputDirectory();
+	    int index = physicalOutputDir.indexOf(File.separator + "directories" + File.separator + "arcgisoutput");
+	    if(index > 0) {
+	      serverLog.addMessage(4, 200,  "SOI ACL: The physical directory for output files: " + physicalOutputDir);
+	      //serverDir = physicalOutputDir.substring(0,index);
+	    } 
+	    else {
+	      serverLog.addMessage(1, 200,"SOI ACL: Incorrect physical directory for output files: " + physicalOutputDir);
+	      throw new IOException("Incorrect physical directory for output files: " + physicalOutputDir);   
+	    }
+	    /*
+	     * Permission are read from this external file. Advantage of an external file is that same SOI can
+	     * be used for multiple services and permission for all of these services is read from the
+	     * permission.json file.
+	     */
+	    String permssionFilePath = physicalOutputDir + File.separator +  "soi_acl.json";
+	    // Read the permissions file
+	    if (new File(permssionFilePath).exists()) {
+	      serverLog.addMessage(3, 200, "SOI ACL:  The ACL config file is located at : " + permssionFilePath);
+	      mapsvcOutputDir = physicalOutputDir;
+	      ConfigMap = readConfigFile(permssionFilePath);
+	    } else {
+	      serverLog.addMessage(1, 200,"SOI ACL: Cannot find the ACL Config file at " + permssionFilePath);
+	      throw new IOException("Cannot find the ACL Config file at " + permssionFilePath);   
+	    }
+	  }
+	  
+	  /**
+	   * Read config information from disk
+	   * 
+	   * @param fileName path and name of the file to read permissions from
+	   * @return
+	 * @throws IOException 
+	 * @throws AutomationException 
+	   */
+	  private JSONObject readConfigFile(String fileName) throws AutomationException, IOException {
+	    // read the permissions file
+	    BufferedReader reader;
+	    JSONObject aclconfig = null;
+	    try {
+	      reader = new BufferedReader(new FileReader(fileName));
+	      String line = null;
+	      String permissionFileDataString = "";
+	      while ((line = reader.readLine()) != null) {
+	        permissionFileDataString += line;
+	      }
+	      serverLog.addMessage(4, 200, "SOI ACL:  ACL Config File Read : " + permissionFileDataString);
+	      aclconfig = new JSONObject(permissionFileDataString);
+	      reader.close();
+	    } catch (Exception ignore) {
+	    	serverLog.addMessage(2, 200, "SOI ACL:  Error occurred in readConfigFile, Exception ignored.");
+	    }
+	    return aclconfig;
+	  }
 }
