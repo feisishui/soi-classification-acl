@@ -19,6 +19,8 @@ package com.esri.gw.security;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 
 import com.esri.arcgis.interop.AutomationException;
@@ -36,8 +38,8 @@ import com.esri.arcgis.system.IRequestHandler2;
 import com.esri.arcgis.system.IWebRequestHandler;
 import com.esri.arcgis.system.IWebRequestHandlerProxy;
 import com.esri.arcgis.system.ServerUtilities;
-
 import com.esri.arcgis.carto.MapServer;
+
 import java.io.BufferedReader;
 import java.io.FileReader;
 
@@ -68,6 +70,10 @@ public class ServerObjectInt1 implements IServerObjectExtension,
 	
 	private JSONObject ConfigMap = null;
 	private String mapsvcOutputDir = null;
+	private String[] svc_citizen = null;
+	private String[] svc_clearances = null;
+	private String[] svc_accesses = null;
+	
 
 	/**
 	 * Default constructor.
@@ -146,18 +152,93 @@ public class ServerObjectInt1 implements IServerObjectExtension,
 				+ requestProperties + ", capabilities: "
 				+ capabilities);
 		
-		/*
-		 * Add code to manipulate REST requests here
-		 */
 
 		// Find the correct delegate to forward the request too
-		IRESTRequestHandler restRequestHandler = soiHelper
-				.findRestRequestHandlerDelegate(so);
+		IRESTRequestHandler restRequestHandler = soiHelper.findRestRequestHandlerDelegate(so);
 		if (restRequestHandler != null) {
-			// Return the response
-			return restRequestHandler.handleRESTRequest(capabilities,
+			
+			// If the config file for the SOLR implementation didn't get read properly or does
+			//   not exist, then don't do any SOI'ing.  Just let the request pass all the way through
+			//   to the underlying service.  An ArcGIS Server admin will need to look at the Logs in
+			//   ArcGIS Server Manager to troubleshoot why this file wasn't read properly
+			if (ConfigMap == null)
+			{
+				serverLog.addMessage(3, 200, "ACL SOI:  ConfigMap not properly initialized.  Passing through.");
+				return restRequestHandler.handleRESTRequest(capabilities,
+						resourceName, operationName, operationInput, outputFormat,
+						requestProperties, responseProperties);
+			}
+			
+			if (operationName.length() == 0 || operationName == "" || operationName == null){
+				serverLog.addMessage(3, 200, "ACL SOI:  No data operation requestion.  Fullfilling request.");
+				return restRequestHandler.handleRESTRequest(capabilities,
+						resourceName, operationName, operationInput, outputFormat,
+						requestProperties, responseProperties);
+			}
+			
+			boolean hasCitizen = new JSONObject(operationInput.toString()).has("citizen");
+			boolean hasClearances = new JSONObject(operationInput.toString()).has("clearances");
+			boolean hasAccesses = new JSONObject(operationInput.toString()).has("accesses");
+			String[] req_citizen;
+			String[] req_clearances;
+			String[] req_accesses;
+			boolean citizen_valid = false;
+			boolean clearances_valid = false;
+			boolean accesses_valid = false;
+			
+			if (hasCitizen){
+				// Not likely, but input could be US,CA ??
+				req_citizen = new JSONObject(operationInput).getString("citizen").split(",");
+				List<String> valid = Arrays.asList(svc_citizen);  // List from the config json file
+				for (String s: req_citizen) {   
+					if (valid.contains(s)) {
+						serverLog.addMessage(3, 200, "ACL SOI:  Citizenship Match on value >> " + s);
+						citizen_valid = true;
+					}
+				}
+			}
+			
+			if (hasClearances){
+				// Input could be C,S,TS
+				req_clearances = new JSONObject(operationInput).getString("clearances").split(",");
+				List<String> valid = Arrays.asList(svc_clearances);  // List from the config json file, only 1 value
+				for (String s: req_clearances) {   
+					if (valid.contains(s)) {
+						serverLog.addMessage(3, 200, "ACL SOI:  Clearance Match on value >> " + s);
+						clearances_valid = true;
+					}
+				}
+			}
+			if (hasAccesses){
+				// Input could be SI-G,TK,HCS-P
+				req_accesses = new JSONObject(operationInput).getString("accesses").split(",");
+				List<String> valid = Arrays.asList(req_accesses);  // List from the request
+				for (String s: svc_accesses) {   
+					if (valid.contains(s)) {
+						serverLog.addMessage(3, 200, "ACL SOI:  Accesses Match on value >> " + s);
+						accesses_valid = true;
+					}
+					else {
+						accesses_valid = false;
+						break;
+					}
+				}
+			}
+			
+			if (citizen_valid && clearances_valid && accesses_valid){
+				serverLog.addMessage(3, 200, "ACL SOI:  Clearances pass!!");
+				// Return the response
+				return restRequestHandler.handleRESTRequest(capabilities,
 					resourceName, operationName, operationInput, outputFormat,
 					requestProperties, responseProperties);
+			}
+			else{
+				serverLog.addMessage(3, 200, "ACL SOI:  Clearances didnt pass...");
+				JSONObject response_new = new JSONObject();
+				response_new.put("error",  new JSONObject().put("code", 403).put("message", "Invalid accesses"));
+				serverLog.addMessage(3, 200, response_new.toString());
+				return response_new.toString().getBytes("UTF-8");
+			}
 		}
 
 		return null;
@@ -417,6 +498,15 @@ public class ServerObjectInt1 implements IServerObjectExtension,
 	    } else {
 	      serverLog.addMessage(1, 200,"SOI ACL: Cannot find the ACL Config file at " + permssionFilePath);
 	      throw new IOException("Cannot find the ACL Config file at " + permssionFilePath);   
+	    }
+	    if (ConfigMap.getString("citizen").length() > 0) {
+	    	svc_citizen = ConfigMap.getString("citizen").split(",");
+	    }
+	    if (ConfigMap.getString("clearances").length() > 0) {
+	    	svc_clearances = ConfigMap.getString("clearances").split(",");
+	    }
+	    if (ConfigMap.getString("accesses").length() > 0) {
+	    	svc_accesses = ConfigMap.getString("accesses").split(",");
 	    }
 	  }
 	  
