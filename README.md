@@ -17,10 +17,10 @@ This project includes an SOI that depends on 2 configurations existing:
 2.  A text file called "soi_acl.json" that is deployed for a particular Map Service located in the C:\arcgisserver\directories\arcgisoutput\Twitter_MapServer (for example) where the SOI will be enabled for that Map Service.
 
 The format of the soi_acl.json should be the following, which is what minimum classification attributes must exist for a user in order to fullfill the request:
-<code>
+<pre>
 {
    "citizen":"US",
    "clearances":"TS",
    "accesses":"SI,TK,HCS"
 }
-</code>
+</pre>
