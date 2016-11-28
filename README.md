@@ -8,5 +8,6 @@ This project assumes some customer implementation where accesses are appended as
 "clearances" --> clearances user has and comma separated (url encoded), e.g. C,S,TS<br>
 "accesses" --> additional accesses user has and comma separated (url encoded), e.g. SI,TK,HCS<br>
 
-&citizen=US&clearances=C%2CS%2CTS&accesses=TK%2CSI-G%2CHCS-P
+Currently, the project queryStringFilter is a building block example where I currently have the following hardcoded:
+<pre>sb.append("&citizen=US&clearances=C%2CS%2CTS&accesses=TK%2CSI-G%2CHCS-P");</pre>
 
